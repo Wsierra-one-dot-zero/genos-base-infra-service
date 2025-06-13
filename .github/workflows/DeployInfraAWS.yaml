@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  Deploy:
+    name: Deploy Base Infrastructure on AWS
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
