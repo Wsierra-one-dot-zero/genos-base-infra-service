@@ -5,6 +5,9 @@ on:
     branches:
       - develop
 
+env:
+  ENVIRONMENT: dev
+
 permissions:
   id-token: write
   contents: read
@@ -26,6 +29,6 @@ jobs:
       - name: Deploy to AWS CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          name: Base-Infraestructure-Stack
+          name: ${{ env.ENVIRONMENT }}-Base-Infraestructure-Stack
           template: template.yml
-          parameter-overrides: ""
+          parameter-overrides: "Environment=${{ env.ENVIRONMENT }}"
