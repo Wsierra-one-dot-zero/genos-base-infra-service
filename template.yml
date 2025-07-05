@@ -205,7 +205,7 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
           Base: 0
-      Settings:
+      ClusterSettings:
         - Name: containerInsights
           Value: enabled
       Tags:
