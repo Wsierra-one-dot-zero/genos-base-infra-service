@@ -1,11 +1,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Template para la infraestructura de la aplicación PrestamosYa'
+Description: Template para la infraestructura de la aplicación ${module}
 
 Parameters:
-  EnvironmentName:
+  Environment:
     Type: String
     Default: dev
     Description: Nombre del ambiente (dev, staging, prod)
+  module:
+    Type: String
+    Default: loans
+    Description: Nombre del módulo
   VpcCidr:
     Type: String
     Default: 10.0.0.0/16
@@ -18,14 +22,6 @@ Parameters:
     Type: String
     Default: 10.0.2.0/24
     Description: CIDR para la segunda subnet pública
-  PrivateSubnet1Cidr:
-    Type: String
-    Default: 10.0.3.0/24
-    Description: CIDR para la primera subnet privada
-  PrivateSubnet2Cidr:
-    Type: String
-    Default: 10.0.4.0/24
-    Description: CIDR para la segunda subnet privada
   AvailabilityZone1:
     Type: String
     Default: us-east-1a
@@ -45,7 +41,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-VPC'
+          Value: !Sub '${module}-${Environment}-VPC'
 
   # Internet Gateway
   InternetGateway:
@@ -53,7 +49,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-IG'
+          Value: !Sub '${module}-${Environment}-IG'
 
   # Attach Internet Gateway to VPC
   InternetGatewayAttachment:
@@ -69,7 +65,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-Public-RT'
+          Value: !Sub '${module}-${Environment}-Public-RT'
 
   # Route to Internet Gateway
   PublicRoute:
@@ -89,7 +85,7 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone1
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-Public-Subnet1'
+          Value: !Sub '${module}-${Environment}-Public-Subnet1'
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -99,7 +95,7 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone2
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-Public-Subnet2'
+          Value: !Sub '${module}-${Environment}-Public-Subnet2'
 
   # Associate Public Subnets with Route Table
   PublicSubnet1RouteTableAssociation:
@@ -114,12 +110,33 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
+  # Private Subnets
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Ref AvailabilityZone1
+      Tags:
+        - Key: Name
+          Value: !Sub '${module}-${Environment}-Private-Subnet1'
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Ref AvailabilityZone2
+      Tags:
+        - Key: Name
+          Value: !Sub '${module}-${Environment}-Private-Subnet2'
+
   # Security Group
   ECSAppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub 'PrestamosYa-${EnvironmentName}-ECS-SG'
-      GroupDescription: Security Group for PrestamosYa ECS Application
+      GroupName: !Sub '${module}-${Environment}-ECS-SG'
+      GroupDescription: Security Group for ${module} ECS Application
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -132,13 +149,13 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-ECS-SG'
+          Value: !Sub '${module}-${Environment}-ECS-SG'
 
   # Application Load Balancer
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub 'PrestamosYa-${EnvironmentName}-ALB'
+      Name: !Sub '${module}-${Environment}-ALB'
       Scheme: internet-facing
       SecurityGroups:
         - !Ref ECSAppSecurityGroup
@@ -147,7 +164,23 @@ Resources:
         - !Ref PublicSubnet2
       Tags:
         - Key: Name
-          Value: !Sub 'PrestamosYa-${EnvironmentName}-ALB'
+          Value: !Sub '${module}-${Environment}-ALB'
+
+  # Target Group
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${module}-${Environment}-TG'
+      VpcId: !Ref VPC
+      Port: 8000
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
 
   # ALB Listener
   ALBListener:
@@ -160,27 +193,11 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
-  # Target Group
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Sub 'PrestamosYa-${EnvironmentName}-TG'
-      VpcId: !Ref VPC
-      Port: 8000
-      Protocol: HTTP
-      TargetType: ip
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 10
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 3
-
   # ECS Cluster
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub 'PrestamosYa-${EnvironmentName}'
+      ClusterName: !Sub '${module}-${Environment}'
       CapacityProviders:
         - FARGATE
         - FARGATE_SPOT
@@ -188,6 +205,14 @@ Resources:
         - CapacityProvider: FARGATE_SPOT
           Weight: 1
           Base: 0
+      Settings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub '${module}-${Environment}-ECS-Cluster'
+        - Key: Environment
+          Value: !Ref Environment
 
 Outputs:
   VPCId:
@@ -199,18 +224,15 @@ Outputs:
   PublicSubnet2:
     Description: Segunda subnet pública
     Value: !Ref PublicSubnet2
-  PrivateSubnet1:
-    Description: Primera subnet privada
-    Value: !Ref PrivateSubnet1
-  PrivateSubnet2:
-    Description: Segunda subnet privada
-    Value: !Ref PrivateSubnet2
   SecurityGroupId:
     Description: ID del Security Group
     Value: !Ref ECSAppSecurityGroup
   ALBDNSName:
-    Description: DNS Name del Load Balancer
+    Description: DNS Name del Application Load Balancer
     Value: !GetAtt ALB.DNSName
+  ALBArn:
+    Description: ARN del Application Load Balancer
+    Value: !Ref ALB
   ECSClusterName:
     Description: Nombre del Cluster ECS
     Value: !Ref ECSCluster
