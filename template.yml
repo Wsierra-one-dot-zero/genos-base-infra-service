@@ -193,8 +193,16 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
+  # Service Linked Role for ECS
+  ECSServiceLinkedRole:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: ecs.amazonaws.com
+      Description: Service-linked role for Amazon ECS
+
   # ECS Cluster
   ECSCluster:
+    DependsOn: ECSServiceLinkedRole
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub '${module}-${Environment}'
