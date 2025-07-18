@@ -187,10 +187,12 @@ Resources:
       HealthCheckIntervalSeconds: 30
       HealthCheckPath: /health/
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 10
+      HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 3
-
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '200-399'
+      
   # ALB Listener
   ALBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -246,3 +248,6 @@ Outputs:
   ECSClusterName:
     Description: Nombre del Cluster ECS
     Value: !Ref ECSCluster
+  TargetGroupArn:
+    Description: ARN del Target Group
+    Value: !Ref TargetGroup
